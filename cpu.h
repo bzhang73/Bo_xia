@@ -59,6 +59,9 @@ typedef struct CPU_Stage
   int mem_address;	// Computed Memory Address
   int busy;		    // Flag to indicate, stage is performing some action
   int stalled;		// Flag to indicate, stage is stalled
+    
+    int URF_index;
+    int URF_rs1_index,URF_rs2_index;
    
 //    //rename table
 //    int rename_rd;
@@ -80,13 +83,16 @@ typedef struct APEX_CPU
   int regs[32];
   int regs_valid[32];
     
+    int URF[40];
+    int URF_valid[40];
+    
+    int RAT[32];
+    
     int z_flag[1];
 
   /* Array of 5 CPU_stage */
   CPU_Stage stage[5];
-    
-    CPU_Stage temp_stage[1];
-    
+
   /* Code Memory where instructions are stored */
   APEX_Instruction* code_memory;
   int code_memory_size;

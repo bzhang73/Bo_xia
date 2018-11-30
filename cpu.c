@@ -52,17 +52,31 @@ APEX_cpu_init(const char* filename)
   memset(cpu->regs_valid, 1, sizeof(int) * 32);
   memset(cpu->stage, 0, sizeof(CPU_Stage) * NUM_STAGES);
   memset(cpu->data_memory, 0, sizeof(int) * 4000);
+
+    memset(cpu->URF, 1, sizeof(int) * 40);
+    memset(cpu->URF_valid, 1, sizeof(int) * 40);
     
-    memset(cpu->temp_stage, 0, sizeof(CPU_Stage));
-
-
-  /* Parse input file and create code memory */
+    memset(cpu->RAT, 0, sizeof(int) * 32);
+  
+    /* Parse input file and create code memory */
   cpu->code_memory = create_code_memory(filename, &cpu->code_memory_size);
 
   if (!cpu->code_memory) {
     free(cpu);
     return NULL;
   }
+    for (int a=0; a<40; a++) {
+        cpu->URF_valid[a]=1;
+        cpu->regs_valid[a]=1;
+        cpu->URF[a]=-1;
+//        printf("%d \n",cpu->URF[a]);
+    }
+    
+    for (int a=0; a<32; a++) {
+        cpu->RAT[a]=-1;
+//        printf("%d \n",cpu->RAT[a]);
+    }
+    
 
 //  if (ENABLE_DEBUG_MESSAGES) {
 //    fprintf(stderr,
@@ -71,8 +85,32 @@ APEX_cpu_init(const char* filename)
 //    fprintf(stderr, "APEX_CPU : Printing Code Memory\n");
 //    printf("%-9s %-9s %-9s %-9s %-9s\n", "opcode", "rd", "rs1", "rs2", "imm");
 //
-//    for (int i = 0; i < cpu->code_memory_size; ++i) {
+//    for (in	t i = 0; i < cpu->code_memory_size; ++i) {
+//        if (i==0) {
+//            int a=0;
+//            if (cpu->code_memory[i].rs1>-1) {
+//                cpu->RAT[cpu->code_memory[i].rs1]=a;
+//                a++;
+//            }
 //
+//            if (cpu->code_memory[i].rs2>-1) {
+//                if (cpu->code_memory[i].rs1 == cpu->code_memory[i].rs2) {
+//                    cpu->RAT[cpu->code_memory[i].rs1]=a-1;
+//                }else{
+//                    cpu->RAT[cpu->code_memory[i].rs2]=a;
+//                    a++;
+//                }
+//            }
+//
+//            if (cpu->code_memory[i].rd>-1) {
+//                cpu->RAT[cpu->code_memory[i].rd]=a;
+//                a++;
+//            }
+//        }
+//
+//        for (int a=1; a<cpu->code_memory; <#increment#>) {
+//            <#statements#>
+//        }
 //
 //
 //      printf("%-9s %-9d %-9d %-9d %-9d\n",
@@ -179,7 +217,8 @@ print_instruction_WB(CPU_Stage* stage)
     }
     
     if (strcmp(stage->opcode, "JUMP") == 0) {
-        printf("%s,R%d,#%d", stage->opcode,stage->rs1, stage->imm);
+        printf(
+               "%s,R%d,#%d", stage->opcode,stage->rs1, stage->imm);
     }
     
     if (strcmp(stage->opcode, "HALT") == 0) {
@@ -197,12 +236,7 @@ print_instruction_WB(CPU_Stage* stage)
 static void
 print_stage_content_WB(char* name, CPU_Stage* stage)
 {
-    if (strcmp(stage->opcode, "NOP") == 0) {
-        printf("%-15s: ", name);
-    }else{
-        printf("%-15s: (I%d) pc(%d) ", name,(stage->pc-4000)/4 , stage->pc);
-    }
-    
+  printf("%-15s: pc(%d) ", name, stage->pc);
   print_instruction_WB(stage);
   printf("\n");
 }
@@ -230,7 +264,7 @@ print_instruction(CPU_Stage* stage)
     
     if (strcmp(stage->opcode, "ADD") == 0) {
         printf(
-               "%s,R%d,R%d,R%d ", stage->opcode, stage->rd, stage->rs1, stage->rs1);
+               "%s,R%d,R%d,R%d ", stage->opcode, stage->rd, stage->rs1, stage->rs2);
     }
     
     if (strcmp(stage->opcode, "SUB") == 0) {
@@ -269,7 +303,8 @@ print_instruction(CPU_Stage* stage)
     }
     
     if (strcmp(stage->opcode, "JUMP") == 0) {
-        printf("%s,R%d,#%d", stage->opcode,stage->rs1, stage->imm);
+        printf(
+               "%s,R%d,#%d", stage->opcode,stage->rs1, stage->imm);
     }
     
     if (strcmp(stage->opcode, "HALT") == 0) {
@@ -287,40 +322,10 @@ print_instruction(CPU_Stage* stage)
 static void
 print_stage_content(char* name, CPU_Stage* stage)
 {
-    if (strcmp(stage->opcode, "NOP") == 0) {
-        printf("%-15s: ", name);
-    }else{
-        printf("%-15s: (I%d) pc(%d) ", name,(stage->pc-4000)/4 , stage->pc);
-    }
-    
+    printf("%-15s: pc(%d) ", name, stage->pc);
     print_instruction(stage);
     printf("\n");
 }
-
-/* Debug function which dumps the cpu stage
- * content
- *
- * Note : You are not supposed to edit this function
- *
- */
-static void
-print_stage_content_ALL(APEX_CPU* cpu)
-{
-    //    CPU_Stage* stage_F = &cpu->stage[F];
-    CPU_Stage* stage_DRF = &cpu->stage[DRF];
-    CPU_Stage* stage_EX = &cpu->stage[EX];
-    CPU_Stage* stage_MEM = &cpu->stage[MEM];
-    CPU_Stage* stage_WB = &cpu->stage[WB];
-    CPU_Stage* stage_TEMP = &cpu->temp_stage[0];
-    
-    print_stage_content("Instruction at FETCH_____STAGE  ---> ", stage_DRF);
-    print_stage_content("Instruction at DECODE_RF_STAGE  ---> ", stage_EX);
-    print_stage_content("IInstruction at EX________STAGE ---> ", stage_MEM);
-    print_stage_content("Instruction at MEMORY____STAGE  ---> ", stage_WB);
-    print_stage_content_WB("Instruction at WRITEBACK_STAGE  ---> ", stage_TEMP);
-    
-}
-
 
 /*
  *  Fetch Stage of APEX Pipeline
@@ -337,7 +342,12 @@ fetch(APEX_CPU* cpu)
     /* Store current PC in fetch latch */
     stage->pc = cpu->pc;
 
-      
+      if (cpu->pc == 4000) {
+          for (int a=0; a<10; a++) {
+              
+              cpu->URF[a]=-1;
+          }
+      }
       
     /* Index into code memory using this pc and copy all instruction fields into
      * fetch latch
@@ -350,20 +360,128 @@ fetch(APEX_CPU* cpu)
     stage->imm = current_ins->imm;
     stage->rd = current_ins->rd;
       
+//      printf("%d \n",cpu->URF_valid[0]);
+
+      
+      int checkstate;
+      if (strcmp(stage->opcode, "MOVC")) {
+          checkstate=1;
+      } else if (strcmp(stage->opcode, "STORE")){
+          checkstate=1;
+      } else if (strcmp(stage->opcode, "LOAD")){
+          checkstate=1;
+      } else if (strcmp(stage->opcode, "ADD")){
+          checkstate=1;
+      } else if (strcmp(stage->opcode, "SUB")){
+          checkstate=1;
+      } else if (strcmp(stage->opcode, "MUL")){
+          checkstate=1;
+      } else if (strcmp(stage->opcode, "AND")){
+          checkstate=1;
+      } else if (strcmp(stage->opcode, "OR")){
+          checkstate=1;
+      } else if (strcmp(stage->opcode, "EX-OR")){
+          checkstate=1;
+      } else if (strcmp(stage->opcode, "BZ")){
+          checkstate=1;
+      } else if (strcmp(stage->opcode, "BNZ")){
+          checkstate=1;
+      } else if (strcmp(stage->opcode, "JUMP")){
+          checkstate=1;
+      } else if (strcmp(stage->opcode, "HALT")){
+          checkstate=1;
+      }else{
+          checkstate=0;
+      }
       
       INSTRUCT_INDEX++;
-
-
-
-    /* Update PC for next instruction */
-    cpu->pc += 4;
-      
-      if (strcmp(stage->opcode, "") == 0) {
+      if (cpu->pc > (4000+4*cpu->code_memory_size)) {
           strcpy(stage->opcode, "NOP");
+          stage->rd = -2;
           stage->rs2 = -1;
           stage->rs1 = -1;
       }
 
+    /* Update PC for next instruction */
+    cpu->pc += 4;
+      
+//      for (int b=0; b<40; b++) {
+//
+//          printf("%d \n",cpu->URF[b]);
+//      }
+      
+      if (checkstate == 0) {
+          strcpy(stage->opcode, "NOP");
+          stage->rs2 = -1;
+          stage->rs1 = -1;
+      }else if (stage->rd>19000000){
+          strcpy(stage->opcode, "NOP");
+          stage->rs2 = -1;
+          stage->rs1 = -1;
+      }else if (stage->rd == -2){
+          strcpy(stage->opcode, "NOP");
+          stage->rs2 = -1;
+          stage->rs1 = -1;
+      } else{
+//          printf("pass %d \n",stage->rd );
+          if (stage->rd>-1) {
+              int valid=0;
+              for (int a=0; a<40; a++) {
+                  if (cpu->URF_valid[a] == 1 && cpu->URF[a]==-1) {
+                      
+                      cpu->RAT[stage->rd]=a;
+                      
+                      stage->URF_index=cpu->RAT[stage->rd];
+                      
+                      cpu->URF_valid[stage->URF_index]=0;
+                      
+                      //                  printf("rat %d rat=%d urfvalid=%d \n",stage->rd,cpu->RAT[stage->rd],cpu->URF_valid[cpu->RAT[stage->rd]]);
+                      valid=1;
+                      break;
+                  }
+              }
+              
+              if (valid ==0) {
+                  for (int a=0; a<40; a++) {
+                      if (cpu->URF_valid[a] == 1) {
+                          
+                          cpu->RAT[stage->rd]=a;
+                          
+                          stage->URF_index=cpu->RAT[stage->rd];
+                          
+                          cpu->URF_valid[stage->URF_index]=0;
+                          
+                          //                  printf("rat %d rat=%d urfvalid=%d \n",stage->rd,cpu->RAT[stage->rd],cpu->URF_valid[cpu->RAT[stage->rd]]);
+                          
+                          break;
+                      }
+                  }
+              }
+
+          }
+          
+          printf("%d RAT %d, value %d\n",stage->rd, stage->URF_index,cpu->URF[stage->URF_index]);
+          
+          if (stage->rs1>-1) {
+              if (cpu->RAT[stage->rs1] != -1) {
+                  stage->URF_rs1_index=cpu->RAT[stage->rs1];
+                  printf("%d ,RAT %d ,  value %d\n",stage->rs1, stage->URF_rs1_index,cpu->URF[stage->URF_rs1_index]);
+              }
+          }
+          
+          
+          if (stage->rs2>-1) {
+              if (cpu->RAT[stage->rs2] != -1) {
+                  stage->URF_rs2_index=cpu->RAT[stage->rs2];
+                  printf("%d ,RAT %d , value %d\n",stage->rs2, stage->URF_rs2_index,cpu->URF[stage->URF_rs2_index]);
+              }
+          }
+          
+          
+      }
+
+      
+      
       if (cpu->pc >= (4000+ 4*(cpu->code_memory_size+1)) ){
           strcpy(stage->opcode, "NOP");
           stage->rs2 = -1;
@@ -393,12 +511,12 @@ fetch(APEX_CPU* cpu)
 //          cpu->pc -=4;
 //      }
       
-//    if (ENABLE_DEBUG_MESSAGES) {
-//        if (Total_type == 2) {
-//
-//            print_stage_content("Fetch", stage);
-//        }
-//    }
+    if (ENABLE_DEBUG_MESSAGES) {
+        if (Total_type == 2) {
+            
+            print_stage_content("Fetch", stage);
+        }
+    }
   }
   return 0;
 }
@@ -626,65 +744,45 @@ decode(APEX_CPU* cpu)
       
       /* No Register file read needed for ADD */
       if (strcmp(stage->opcode, "ADD") == 0) {
-          if (stage->rs1 == stage_EX->rd) {
+          
+          if (cpu->URF_valid[stage->URF_rs1_index] == 0) {
               if (strcmp(stage_EX->opcode, "LOAD") == 0) {
                   RS1_INDEX=1;
                   
               }else{
                   
-                  stage->rs1_value = stage_EX->buffer;
+                  stage->rs1_value = cpu->URF[stage->URF_rs1_index];
+//                  printf("urf rs1 %d \n",stage->rs1_value );
                   RS1_INDEX=0;
               }
               
-          } else if (stage->rs1 == stage_MEM->rd){
-              if (strcmp(stage_MEM->opcode, "LOAD") == 0) {
-                  RS1_INDEX=1;
-                  
-              }else{
-                  
-                  stage->rs1_value = stage_MEM->buffer;
-                  RS1_INDEX=0;
-              }
-              
-          } else if (stage->rs1 == stage_WB->rd){
-              
-              stage->rs1_value = stage_WB->buffer;
-              RS1_INDEX=0;
-              
-          } else{
+          }else{
               stage->rs1_value = cpu->regs[stage->rs1];
+              
+//              printf("regs rs1 %d \n",stage->rs1_value );
               RS1_INDEX=0;
               
           }
           
-          if (stage->rs2 == stage_EX->rd) {
+          if (cpu->URF_valid[stage->URF_rs2_index] == 0) {
               if (strcmp(stage_EX->opcode, "LOAD") == 0) {
                   
                   RS2_INDEX=1;
               }else{
                   
-                  stage->rs2_value = stage_EX->buffer;
+                  stage->rs2_value = cpu->URF[stage->URF_rs2_index];
+                 
+                  printf("urf rs2 %d \n",stage->rs2_value );
+                  
                   RS2_INDEX=0;
                   
               }
-              
-          } else if (stage->rs2 == stage_MEM->rd){
-              if (strcmp(stage_MEM->opcode, "LOAD") == 0) {
-                  
-                  RS2_INDEX=1;
-              }else{
-                  
-                  stage->rs2_value = stage_MEM->buffer;
-                  RS2_INDEX=0;
-              }
-              
-          } else if (stage->rs2 == stage_WB->rd){
-              
-              stage->rs2_value = stage_WB->buffer;
-              RS2_INDEX=0;
               
           } else{
               stage->rs2_value = cpu->regs[stage->rs2];
+              
+              printf("regs rs2 %d \n",stage->rs2_value );
+              
               RS2_INDEX=0;
           }
           
@@ -712,71 +810,33 @@ decode(APEX_CPU* cpu)
       
       /* No Register file read needed for SUB */
       if (strcmp(stage->opcode, "SUB") == 0) {
-          if (stage->rs1 == stage_EX->rd) {
+          if (cpu->URF_valid[stage->URF_rs1_index] == 0) {
               if (strcmp(stage_EX->opcode, "LOAD") == 0) {
                   RS1_INDEX=1;
                   
               }else{
-                  
-                  stage->rs1_value = stage_EX->buffer;
+                  stage->rs1_value = cpu->URF[stage->URF_rs1_index];
                   RS1_INDEX=0;
               }
-              
-          } else if (stage->rs1 == stage_MEM->rd){
-              if (strcmp(stage_MEM->opcode, "LOAD") == 0) {
-                  RS1_INDEX=1;
-                  
-              }else{
-                  
-                  stage->rs1_value = stage_MEM->buffer;
-                  RS1_INDEX=0;
-              }
-              
-          } else if (stage->rs1 == stage_WB->rd){
-              
-              stage->rs1_value = stage_WB->buffer;
-              RS1_INDEX=0;
           }else{
               stage->rs1_value = cpu->regs[stage->rs1];
               RS1_INDEX=0;
               
           }
           
-          if (stage->rs2 == stage_EX->rd) {
+          if (cpu->URF_valid[stage->URF_rs2_index] == 0) {
               if (strcmp(stage_EX->opcode, "LOAD") == 0) {
                   
                   RS2_INDEX=1;
               }else{
+                  stage->rs2_value = cpu->URF[stage->URF_rs2_index];
                   
-                  stage->rs2_value = stage_EX->buffer;
                   RS2_INDEX=0;
-                  
               }
-              
-          } else if (stage->rs2 == stage_MEM->rd){
-              if (strcmp(stage_MEM->opcode, "LOAD") == 0) {
-                  
-                  RS2_INDEX=1;
-              }else{
-                  
-                  stage->rs2_value = stage_MEM->buffer;
-                  RS2_INDEX=0;
-                  
-              }
-              
-          } else if (stage->rs2 == stage_WB->rd){
-              stage->rs2_value = stage_WB->buffer;
-              RS2_INDEX=0;
-              
-          }else{
+          } else{
               stage->rs2_value = cpu->regs[stage->rs2];
+              
               RS2_INDEX=0;
-          }
-          
-          if (RS1_INDEX == 0 && RS2_INDEX == 0) {
-              STOP_INDEX=0;
-          }else{
-              STOP_INDEX=1;
           }
           
           
@@ -797,61 +857,32 @@ decode(APEX_CPU* cpu)
       
       /* Read data from register file for AND */
       if (strcmp(stage->opcode, "AND") == 0) {
-          if (stage->rs1 == stage_EX->rd) {
+          if (cpu->URF_valid[stage->URF_rs1_index] == 0) {
               if (strcmp(stage_EX->opcode, "LOAD") == 0) {
                   RS1_INDEX=1;
                   
               }else{
-                  
-                  stage->rs1_value = stage_EX->buffer;
+                  stage->rs1_value = cpu->URF[stage->URF_rs1_index];
                   RS1_INDEX=0;
               }
-              
-          } else if (stage->rs1 == stage_MEM->rd){
-              if (strcmp(stage_MEM->opcode, "LOAD") == 0) {
-                  RS1_INDEX=1;
-                  
-              }else{
-                  
-                  stage->rs1_value = stage_MEM->buffer;
-                  RS1_INDEX=0;
-              }
-              
-          } else if (stage->rs1 == stage_WB->rd){
-              stage->rs1_value = stage_WB->buffer;
-              RS1_INDEX=0;
-              
           }else{
               stage->rs1_value = cpu->regs[stage->rs1];
               RS1_INDEX=0;
+              
           }
           
-          if (stage->rs2 == stage_EX->rd) {
+          if (cpu->URF_valid[stage->URF_rs2_index] == 0) {
               if (strcmp(stage_EX->opcode, "LOAD") == 0) {
                   
                   RS2_INDEX=1;
               }else{
+                  stage->rs2_value = cpu->URF[stage->URF_rs2_index];
                   
-                  stage->rs2_value = stage_EX->buffer;
                   RS2_INDEX=0;
               }
-              
-          } else if (stage->rs2 == stage_MEM->rd){
-              if (strcmp(stage_MEM->opcode, "LOAD") == 0) {
-                  
-                  RS2_INDEX=1;
-              }else{
-                  
-                  stage->rs2_value = stage_MEM->buffer;
-                  RS2_INDEX=0;
-              }
-              
-          } else if (stage->rs2 == stage_WB->rd){
-              stage->rs2_value = stage_WB->buffer;
-              RS2_INDEX=0;
-              
-          }else{
+          } else{
               stage->rs2_value = cpu->regs[stage->rs2];
+              
               RS2_INDEX=0;
           }
           
@@ -879,62 +910,32 @@ decode(APEX_CPU* cpu)
       
       /* Read data from register file for OR */
       if (strcmp(stage->opcode, "OR") == 0) {
-          if (stage->rs1 == stage_EX->rd) {
+          if (cpu->URF_valid[stage->URF_rs1_index] == 0) {
               if (strcmp(stage_EX->opcode, "LOAD") == 0) {
                   RS1_INDEX=1;
                   
               }else{
-                  
-                  stage->rs1_value = stage_EX->buffer;
+                  stage->rs1_value = cpu->URF[stage->URF_rs1_index];
                   RS1_INDEX=0;
               }
-              
-          } else if (stage->rs1 == stage_MEM->rd){
-              if (strcmp(stage_MEM->opcode, "LOAD") == 0) {
-                  RS1_INDEX=1;
-                  
-              }else{
-                  
-                  stage->rs1_value = stage_MEM->buffer;
-                  RS1_INDEX=0;
-              }
-              
-          } else if (stage->rs1 == stage_WB->rd){
-              stage->rs1_value = stage_WB->buffer;
-              RS1_INDEX=0;
-              
-          } else{
+          }else{
               stage->rs1_value = cpu->regs[stage->rs1];
               RS1_INDEX=0;
+              
           }
           
-          if (stage->rs2 == stage_EX->rd) {
+          if (cpu->URF_valid[stage->URF_rs2_index] == 0) {
               if (strcmp(stage_EX->opcode, "LOAD") == 0) {
                   
                   RS2_INDEX=1;
               }else{
+                  stage->rs2_value = cpu->URF[stage->URF_rs2_index];
                   
-                  stage->rs2_value = stage_EX->buffer;
                   RS2_INDEX=0;
               }
-              stage_EX->rd=-1;
-              
-          } else if (stage->rs2 == stage_MEM->rd){
-              if (strcmp(stage_MEM->opcode, "LOAD") == 0) {
-                  
-                  RS2_INDEX=1;
-              }else{
-                  
-                  stage->rs2_value = stage_MEM->buffer;
-                  RS2_INDEX=0;
-              }
-              
-          } else if (stage->rs2 == stage_WB->rd){
-              stage->rs2_value = stage_WB->buffer;
-              RS2_INDEX=0;
-              
-          }else{
+          } else{
               stage->rs2_value = cpu->regs[stage->rs2];
+              
               RS2_INDEX=0;
           }
           
@@ -962,63 +963,32 @@ decode(APEX_CPU* cpu)
       
       /* Read data from register file for EX-OR */
       if (strcmp(stage->opcode, "EX-OR") == 0) {
-          if (stage->rs1 == stage_EX->rd) {
+          if (cpu->URF_valid[stage->URF_rs1_index] == 0) {
               if (strcmp(stage_EX->opcode, "LOAD") == 0) {
                   RS1_INDEX=1;
                   
               }else{
-                  
-                  stage->rs1_value = stage_EX->buffer;
+                  stage->rs1_value = cpu->URF[stage->URF_rs1_index];
                   RS1_INDEX=0;
               }
-              
-          } else if (stage->rs1 == stage_MEM->rd){
-              if (strcmp(stage_MEM->opcode, "LOAD") == 0) {
-                  RS1_INDEX=1;
-                  
-              }else{
-                  
-                  stage->rs1_value = stage_MEM->buffer;
-                  RS1_INDEX=0;
-              }
-              
-          } else if (stage->rs1 == stage_WB->rd){
-              stage->rs1_value = stage_WB->buffer;
-              RS1_INDEX=0;
-              
-          } else{
+          }else{
               stage->rs1_value = cpu->regs[stage->rs1];
               RS1_INDEX=0;
               
           }
           
-          if (stage->rs2 == stage_EX->rd) {
+          if (cpu->URF_valid[stage->URF_rs2_index] == 0) {
               if (strcmp(stage_EX->opcode, "LOAD") == 0) {
                   
                   RS2_INDEX=1;
               }else{
+                  stage->rs2_value = cpu->URF[stage->URF_rs2_index];
                   
-                  stage->rs2_value = stage_EX->buffer;
                   RS2_INDEX=0;
               }
-              
-          } else if (stage->rs2 == stage_MEM->rd){
-              if (strcmp(stage_MEM->opcode, "LOAD") == 0) {
-                  
-                  RS2_INDEX=1;
-              }else{
-                  
-                  stage->rs2_value = stage_MEM->buffer;
-                  RS2_INDEX=0;
-              }
-              
-          } else if (stage->rs2 == stage_WB->rd){
-              
-              stage->rs2_value = stage_WB->buffer;
-              RS2_INDEX=0;
-              
-          }else{
+          } else{
               stage->rs2_value = cpu->regs[stage->rs2];
+              
               RS2_INDEX=0;
           }
           
@@ -1046,63 +1016,32 @@ decode(APEX_CPU* cpu)
       
       /* No Register file read needed for MUL */
       if (strcmp(stage->opcode, "MUL") == 0) {
-          if (stage->rs1 == stage_EX->rd) {
+          if (cpu->URF_valid[stage->URF_rs1_index] == 0) {
               if (strcmp(stage_EX->opcode, "LOAD") == 0) {
                   RS1_INDEX=1;
                   
               }else{
-                  
-                  stage->rs1_value = stage_EX->buffer;
+                  stage->rs1_value = cpu->URF[stage->URF_rs1_index];
                   RS1_INDEX=0;
               }
-              
-          } else if (stage->rs1 == stage_MEM->rd){
-              if (strcmp(stage_MEM->opcode, "LOAD") == 0) {
-                  RS1_INDEX=1;
-                  
-              }else{
-                  
-                  stage->rs1_value = stage_MEM->buffer;
-                  RS1_INDEX=0;
-              }
-              
-          } else if (stage->rs1 == stage_WB->rd){
-              stage->rs1_value = stage_WB->buffer;
-              RS1_INDEX=0;
-              
-          } else{
+          }else{
               stage->rs1_value = cpu->regs[stage->rs1];
               RS1_INDEX=0;
               
           }
           
-          if (stage->rs2 == stage_EX->rd) {
+          if (cpu->URF_valid[stage->URF_rs2_index] == 0) {
               if (strcmp(stage_EX->opcode, "LOAD") == 0) {
                   
                   RS2_INDEX=1;
               }else{
+                  stage->rs2_value = cpu->URF[stage->URF_rs2_index];
                   
-                  stage->rs2_value = stage_EX->buffer;
                   RS2_INDEX=0;
               }
-              
-          } else if (stage->rs2 == stage_MEM->rd){
-              if (strcmp(stage_MEM->opcode, "LOAD") == 0) {
-                  
-                  RS2_INDEX=1;
-              }else{
-                  
-                  stage->rs2_value = stage_MEM->buffer;
-                  RS2_INDEX=0;
-              }
-              
-          } else if (stage->rs2 == stage_WB->rd){
-              
-              stage->rs2_value = stage_WB->buffer;
-              RS2_INDEX=0;
-              
-          }else{
+          } else{
               stage->rs2_value = cpu->regs[stage->rs2];
+              
               RS2_INDEX=0;
           }
           
@@ -1147,7 +1086,54 @@ decode(APEX_CPU* cpu)
       
       /* Read data from register file for JUMP */
       if (strcmp(stage->opcode, "JUMP") == 0) {
+          if (stage->rs1 == stage_EX->rd) {
+              if (strcmp(stage_EX->opcode, "LOAD") == 0) {
+                  RS1_INDEX=1;
+              }else{
+                  
+                  stage->rs1_value = stage_EX->buffer;
+                  
+                  RS1_INDEX=0;
+              }
+              
+          } else if (stage->rs1 == stage_MEM->rd){
+              if (strcmp(stage_MEM->opcode, "LOAD") == 0) {
+                  RS1_INDEX=1;
+              }else{
+                  
+                  stage->rs1_value = stage_MEM->buffer;
+                  RS1_INDEX=0;
+              }
+              
+          } else if (stage->rs1 == stage_WB->rd){
+              
+              stage->rs1_value = stage_WB->buffer;
+              
+              RS1_INDEX=0;
+              
+          }else{
+              stage->rs1_value = cpu->regs[stage->rs1];
+              RS1_INDEX=0;
+          }
           
+          if (RS1_INDEX == 0) {
+              STOP_INDEX=0;
+          }else{
+              STOP_INDEX=1;
+          }
+          
+          if (STOP_INDEX != 0) {
+              strcpy(stage_EX->opcode, "NOP");
+              stage_EX->rd=-1;
+              
+          }
+          else if (MUL_INDEX != 0){
+              
+          } else {
+              /* Copy data from decode latch to execute latch*/
+              cpu->stage[EX] = cpu->stage[DRF];
+              
+          }
               /* Copy data from decode latch to execute latch*/
               cpu->stage[EX] = cpu->stage[DRF];
           
@@ -1173,12 +1159,12 @@ decode(APEX_CPU* cpu)
 
       }
 
-//    if (ENABLE_DEBUG_MESSAGES) {
-//        if (Total_type == 2) {
-//            print_stage_content("Decode/RF", stage);
-//        }
-//
-//    }
+    if (ENABLE_DEBUG_MESSAGES) {
+        if (Total_type == 2) {
+            print_stage_content("Decode/RF", stage);
+        }
+      
+    }
   }
   return 0;
 }
@@ -1240,6 +1226,8 @@ execute(APEX_CPU* cpu)
     if (strcmp(stage->opcode, "MOVC") == 0) {
         stage->buffer = stage->imm + 0;
         
+        cpu->URF[stage->URF_index]=stage->buffer;
+        
         /* Copy data from Execute latch to Memory latch*/
         cpu->stage[MEM] = cpu->stage[EX];
     }
@@ -1256,6 +1244,8 @@ execute(APEX_CPU* cpu)
       if (strcmp(stage->opcode, "ADD") == 0) {
           stage->buffer = stage->rs1_value + stage->rs2_value;
           
+          cpu->URF[stage->URF_index]=stage->buffer;
+          
           //z_flag
           if (stage->buffer == 0) {
               cpu->z_flag[0] = 1;
@@ -1270,6 +1260,8 @@ execute(APEX_CPU* cpu)
       /* SUB  */
       if (strcmp(stage->opcode, "SUB") == 0) {
           stage->buffer = stage->rs1_value - stage->rs2_value;
+          
+          cpu->URF[stage->URF_index]=stage->buffer;
           
           //z_flag
           if (stage->buffer == 0) {
@@ -1286,6 +1278,8 @@ execute(APEX_CPU* cpu)
       if (strcmp(stage->opcode, "AND") == 0) {
           stage->buffer = stage->rs1_value & stage->rs2_value;
           
+          cpu->URF[stage->URF_index]=stage->buffer;
+          
           /* Copy data from Execute latch to Memory latch*/
           cpu->stage[MEM] = cpu->stage[EX];
       }
@@ -1294,6 +1288,8 @@ execute(APEX_CPU* cpu)
       if (strcmp(stage->opcode, "OR") == 0) {
           stage->buffer = stage->rs1_value | stage->rs2_value;
           
+          cpu->URF[stage->URF_index]=stage->buffer;
+          
           /* Copy data from Execute latch to Memory latch*/
           cpu->stage[MEM] = cpu->stage[EX];
       }
@@ -1301,6 +1297,8 @@ execute(APEX_CPU* cpu)
       /* EX-OR  */
       if (strcmp(stage->opcode, "EX-OR") == 0) {
           stage->buffer = stage->rs1_value ^ stage->rs2_value;
+          
+          cpu->URF[stage->URF_index]=stage->buffer;
           
           /* Copy data from Execute latch to Memory latch*/
           cpu->stage[MEM] = cpu->stage[EX];
@@ -1319,8 +1317,12 @@ execute(APEX_CPU* cpu)
               MUL_INDEX = 1;
           } else {
 //              STOP_INDEX=0;
+              printf("%d %d\n",stage->rs1_value,stage->rs2_value);
               stage->buffer = stage->rs1_value * stage->rs2_value;
               MUL_INDEX = 0;
+              
+              cpu->URF[stage->URF_index]=stage->buffer;
+              printf("%d rat%d urf%d\n",stage->rd,stage->URF_index,cpu->URF[stage->URF_index]);
               
               //z_flag
               if (stage->buffer == 0) {
@@ -1357,7 +1359,7 @@ execute(APEX_CPU* cpu)
       
       /* JUMP  */
       if (strcmp(stage->opcode, "JUMP") == 0) {
-          stage->buffer = stage->rs1 + stage->imm;
+          stage->buffer = stage->rs1_value + stage->imm;
           
           /* Copy data from Execute latch to Memory latch*/
           cpu->stage[MEM] = cpu->stage[EX];
@@ -1385,12 +1387,12 @@ execute(APEX_CPU* cpu)
 //      }
 
 
-//    if (ENABLE_DEBUG_MESSAGES) {
-//        if (Total_type == 2) {
-//            print_stage_content("Execute", stage);
-//        }
-//
-//    }
+    if (ENABLE_DEBUG_MESSAGES) {
+        if (Total_type == 2) {
+            print_stage_content("Execute", stage);
+        }
+      
+    }
   }
   return 0;
 }
@@ -1415,6 +1417,8 @@ memory(APEX_CPU* cpu)
     if (strcmp(stage->opcode, "STORE") == 0) {
         stage->mem_address = stage->buffer;
         cpu->data_memory[stage->mem_address] = stage->rs1_value;
+        
+        cpu->URF[stage->rd]=stage->buffer;
     }
       
       /* LOAD */
@@ -1422,6 +1426,9 @@ memory(APEX_CPU* cpu)
           stage->mem_address = stage->buffer;
           stage->rs2_value = cpu->data_memory[stage->mem_address];
           stage->buffer=stage->rs2_value;
+          
+          cpu->URF[stage->URF_index]=stage->buffer;
+          
       }
 
     /* MOVC */
@@ -1536,12 +1543,12 @@ memory(APEX_CPU* cpu)
     /* Copy data from decode latch to execute latch*/
     cpu->stage[WB] = cpu->stage[MEM];
 
-//    if (ENABLE_DEBUG_MESSAGES) {
-//        if (Total_type == 2) {
-//            print_stage_content("Memory", stage);
-//        }
-//
-//    }
+    if (ENABLE_DEBUG_MESSAGES) {
+        if (Total_type == 2) {
+            print_stage_content("Memory", stage);
+        }
+      
+    }
   }
   return 0;
 }
@@ -1563,6 +1570,9 @@ writeback(APEX_CPU* cpu)
         cpu->regs_valid[stage->rd] = 1;
         cpu->regs[stage->rd] = stage->buffer;
         
+        cpu->URF_valid[stage->URF_index]=1;
+        cpu->URF[stage->URF_index]=stage->buffer;
+        
         cpu->ins_completed++;
     }
       /* Store */
@@ -1583,6 +1593,9 @@ writeback(APEX_CPU* cpu)
           cpu->regs_valid[stage->rd] = 1;
           cpu->regs[stage->rd] = stage->buffer;
           
+          cpu->URF[stage->URF_index]=stage->buffer;
+          cpu->URF_valid[stage->URF_index]=1;
+          
           cpu->ins_completed++;
       }
       
@@ -1590,6 +1603,9 @@ writeback(APEX_CPU* cpu)
       if (strcmp(stage->opcode, "SUB") == 0) {
           cpu->regs_valid[stage->rd] = 1;
           cpu->regs[stage->rd] = stage->buffer;
+          
+          cpu->URF[stage->URF_index]=stage->buffer;
+          cpu->URF_valid[stage->URF_index]=1;
           
           cpu->ins_completed++;
       }
@@ -1599,6 +1615,9 @@ writeback(APEX_CPU* cpu)
           cpu->regs_valid[stage->rd] = 1;
           cpu->regs[stage->rd] = stage->buffer;
           
+          cpu->URF[stage->URF_index]=stage->buffer;
+          cpu->URF_valid[stage->URF_index]=1;
+          
           cpu->ins_completed++;
       }
       
@@ -1606,6 +1625,9 @@ writeback(APEX_CPU* cpu)
       if (strcmp(stage->opcode, "OR") == 0) {
           cpu->regs_valid[stage->rd] = 1;
           cpu->regs[stage->rd] = stage->buffer;
+          
+          cpu->URF[stage->URF_index]=stage->buffer;
+          cpu->URF_valid[stage->URF_index]=1;
           
           cpu->ins_completed++;
       }
@@ -1615,6 +1637,9 @@ writeback(APEX_CPU* cpu)
           cpu->regs_valid[stage->rd] = 1;
           cpu->regs[stage->rd] = stage->buffer;
           
+          cpu->URF[stage->URF_index]=stage->buffer;
+          cpu->URF_valid[stage->URF_index]=1;
+          
           cpu->ins_completed++;
       }
       
@@ -1622,6 +1647,9 @@ writeback(APEX_CPU* cpu)
       if (strcmp(stage->opcode, "MUL") == 0) {
           cpu->regs_valid[stage->rd] = 1;
           cpu->regs[stage->rd] = stage->buffer;
+          
+          cpu->URF[stage->URF_index]=stage->buffer;
+          cpu->URF_valid[stage->URF_index]=1;
           
           cpu->ins_completed++;
       }
@@ -1651,15 +1679,12 @@ writeback(APEX_CPU* cpu)
           
       }
 
-      /* Copy data from Execute latch to Memory latch*/
-      cpu->temp_stage[0] = cpu->stage[WB];
-
-//    if (ENABLE_DEBUG_MESSAGES) {
-//        if (Total_type == 2) {
-//            print_stage_content_WB("Writeback", stage);
-//        }
-//
-//    }
+    if (ENABLE_DEBUG_MESSAGES) {
+        if (Total_type == 2) {
+            print_stage_content_WB("Writeback", stage);
+        }
+      
+    }
   }
   return 0;
 }
@@ -1686,23 +1711,18 @@ APEX_cpu_run(APEX_CPU* cpu)
       if (Total_type == 2) {
           if (ENABLE_DEBUG_MESSAGES) {
               printf("--------------------------------\n");
-              printf("Clock Cycle #: %d\n", (cpu->clock));
+              printf("Clock Cycle #: %d\n", (cpu->clock+1));
               printf("--------------------------------\n");
           }
-          
-          
-          
-          print_stage_content_ALL(cpu);
       }
-      
+
+
     writeback(cpu);
     memory(cpu);
     execute(cpu);
     decode(cpu);
     fetch(cpu);
     cpu->clock++;
-      
-
       
       if (HALT_INDEX != 0) {
           break;
@@ -1711,7 +1731,7 @@ APEX_cpu_run(APEX_CPU* cpu)
     
     if (Total_type != 0) {
         printf("\n=============== STATE OF ARCHITECTURAL REGISTER FILE ==========\n");
-        
+
         for (int a=0; a<16; a++) {
             char str[10];
             if (cpu->regs_valid[a] == 1) {
@@ -1719,25 +1739,25 @@ APEX_cpu_run(APEX_CPU* cpu)
             } else{
                 strcpy(str, "Invalid");
             }
-            
+
             if (a<10) {
                 printf("|   REG[0%d]  |   Value = %4d  |   Status = %10s    |\n",a, cpu->regs[a], str);
             } else{
                 printf("|   REG[%d]  |   Value = %4d  |   Status = %10s    |\n",a, cpu->regs[a], str);
             }
         }
-        
+
         printf("\n============== STATE OF DATA MEMORY =============\n");
-        
+
         for (int a=0; a<100; a++) {
-            
+
             if (a<10) {
                 printf("|   MEM[0%d]  |   Value = %4d  |\n",a, cpu->data_memory[a]);
             } else{
                 printf("|   REG[%d]  |   Value = %4d  |\n",a, cpu->data_memory[a]);
             }
         }
-        
+
     }
     
     
